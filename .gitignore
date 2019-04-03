@@ -1,0 +1,9 @@
+#mac specific
+.DS_STORE
+
+#python
+*.__pycache__
+*.pyc
+
+#misc
+*.vscode
