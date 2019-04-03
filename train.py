@@ -21,8 +21,8 @@ from keras.layers.embeddings import Embedding
 from keras.layers.wrappers import Bidirectional
 from keras.utils import np_utils
 from keras.preprocessing.sequence import pad_sequences
-from keras.regularizers import WeightRegularizer # for keras 1
-#from keras.regularizers import l2 # for keras 2
+#from keras.regularizers import WeightRegularizer # for keras 1
+from keras.regularizers import l2 # for keras 2
 from keras.constraints import maxnorm
 from keras import optimizers
 import FarrokhAttentionLayer as F
@@ -46,8 +46,8 @@ def convert_data(dataset, nclasses=None, part=None):
 	# reshape X to be [samples, time steps, features]
 	X = np.reshape(X, (X.shape[0], max_len))
 	# one-hot representation
-	y = np_utils.to_categorical(dataY, nb_classes=nclasses) # for keras 1
-	#y = np_utils.to_categorical(dataY, num_classes=nclasses) # for keras 2
+	#y = np_utils.to_categorical(dataY, nb_classes=nclasses) # for keras 1
+	y = np_utils.to_categorical(dataY, num_classes=nclasses) # for keras 2
 	return X, y
 
 
@@ -80,9 +80,9 @@ def shift(X, y, dev_X, dev_y, shuffle=False, val_size=None):
 
 ## Load data
 
-trainset = resources.read_relations("conll16st-en-zh-dev-train-test_LDC2016E50/conll16st-zh-01-08-2016-train/", ignore_types=["Explicit", "AltLex"], partial_sampling=True)
-devset = resources.read_relations("conll16st-en-zh-dev-train-test_LDC2016E50/conll16st-zh-01-08-2016-dev/", ignore_types=["Explicit", "AltLex"], partial_sampling=True)
-testset = resources.read_relations("conll16st-en-zh-dev-train-test_LDC2016E50/conll16st-zh-01-08-2016-test/", ignore_types=["Explicit", "AltLex"])
+trainset = resources.read_relations("data/en.test/", ignore_types=["Explicit", "AltLex"], partial_sampling=True)
+devset = resources.read_relations("data/en.test/", ignore_types=["Explicit", "AltLex"], partial_sampling=True)
+testset = resources.read_relations("data/en.test/", ignore_types=["Explicit", "AltLex"])
 """
 trainset = resources.read_relations("conll16st-en-zh-dev-train-test_LDC2016E50/conll16st-en-03-29-16-train/", ignore_types=["Explicit", "AltLex"], partial_sampling=True)
 devset = resources.read_relations("conll16st-en-zh-dev-train-test_LDC2016E50/conll16st-en-03-29-16-dev/", ignore_types=["Explicit", "AltLex"], partial_sampling=True)
@@ -118,7 +118,7 @@ json.dump([token2id, label2id, id2token, id2label], open("model.map","w"))
 
 # Read pre-trained word2vec vectors
 #vectors = resources.get_vectors(vocab, token2id, "zh-Gigaword-300.txt")
-vectors = resources.get_vectors(vocab, token2id, "zh-gw300_intersect.w2v")
+vectors = resources.get_vectors(vocab, token2id, "data/GoogleNews-vectors-negative300.bin")
 emb_dim = vectors.shape[1] # Word embedding dimensions
 
 # Initialize datasets
@@ -136,13 +136,13 @@ for nexp in range(5):
 	inlayer1 = Input(shape=(max_len,))
 	emb1 = Embedding(len(vocab)+2, emb_dim, input_length=max_len, trainable=True,
 					 mask_zero=True, weights=[vectors],
-					 dropout=0.5, W_constraint=maxnorm(2)
+					 embeddings_constraint=maxnorm(2)
 					)(inlayer1)
-	#emb1drop = Dropout(0.5)(inlayer1) # for keras 2: dropout not as argument to emb layer
+	emb1drop = Dropout(0.5)(emb1) # for keras 2: dropout not as argument to emb layer
 	lstm1 = Bidirectional(
-				LSTM(300, activation="tanh", input_dim=emb_dim, return_sequences=True,
-					dropout_W=0.5, W_regularizer=WeightRegularizer(l2=0.0000025)) # for keras 2: W_reg...=l2() instead
-			, merge_mode='sum')(emb1)
+				LSTM(300, activation="tanh", input_shape=(None, emb_dim), return_sequences=True,
+					dropout=0.5, kernel_regularizer=l2(0.0000025)) # for keras 2: W_reg...=l2() instead
+			, merge_mode='sum')(emb1drop)
 
 	attention1 = F.FarATTN(name="M_ATTN1")(lstm1)
 	att1drop = Dropout(0.5)(attention1)
@@ -152,7 +152,7 @@ for nexp in range(5):
 
 
 	## Training and evaluation
-	test_senses = resources.read_senses("conll16st-en-zh-dev-train-test_LDC2016E50/conll16st-zh-01-08-2016-test/", ignore_types=["Explicit", "AltLex"])
+	test_senses = resources.read_senses("data/en.test/", ignore_types=["Explicit", "AltLex"])
 	#test_senses = resources.read_senses("conll16st-en-zh-dev-train-test_LDC2016E50/conll16st-en-03-29-16-test/", ignore_types=["Explicit", "AltLex"])
 	test_labels = [[label2id[s] for s in ss] for ss in test_senses]
 
