@@ -148,9 +148,9 @@ def get_vectors(vocab, token2id, path):
         vectors = gensim.models.word2vec.Word2Vec.load(path)
     except:
         try:
-            vectors = gensim.models.word2vec.Word2Vec.load_word2vec_format(path, binary=False)
+            vectors = gensim.models.KeyedVectors.load_word2vec_format(path, binary=False)
         except:
-            vectors = gensim.models.word2vec.Word2Vec.load_word2vec_format(path, binary=True)
+            vectors = gensim.models.KeyedVectors.load_word2vec_format(path, binary=True)
 
     vocab_dim = len(vectors[list(vectors.vocab.keys())[0]])
     nsymbols = len(vocab) + 1
